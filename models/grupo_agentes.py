@@ -1,52 +1,77 @@
 from odoo import models, fields
 # Modulo para asignar automaticamente leads a agentes de ventas
-#
-# Se creo un modelo para segmentar a los agentes  que se les asignara 
-# leads el cual agrega un campo nuevo a la tabla res_user "grupo_agentes"
+# 
+# 
 #
 # Queda pentiene:
 # -Crear los grupo_agentes en la bdd y asignar los agentes a estos grupos 
 #  (Los agentes estan en el excel)
 # -La funcion que asigna el lead
-# -Corregir errores en los modelos
+# 
 #
 # Estructura:
-# -Clase Modelo GrupoAgentes
 # -Clase Acciones al crear lead
 # -Clases con datos de dias festivos (Para calcular la asignacion del lead)
 #--------------------------------------------------------------------------
 
 
-# -Clase Modelo GrupoAgentes
-# Clase creada para segmentar a los agentes a los cuales se les asignan los leads
-class GrupoAgentes(models.Model):   
-    grupo_agentes = fields.Char(string="grupo de agentes asigna leads", required=True)
-
-class ResUsers(models.Model):
-    _inherit = "res.users"
-    
-    grupo_agentes = fields.Many2one(GrupoAgentes, string="grupo de agentes asigna leads", on_delete=models.CASCADE, required=False)
-#-----------------------------------------------------------
-
-# -Clase Acciones al crear lead    
 class CrmLead(models.Model):
     _inherit = 'crm.lead'
 
     @api.model
-    def create(self, values): # Aqui se agrega el agente asignado al lead
+    def create(self, values): # Cuando se crea el lead se ejecuta para asignar agente
         agente = values.get('user_id')
-        global localidad = values.get('country_id')
+        self.localidad = values.get('country_id')
+        # 68 = España, 
 
         if agente:
             agente = self.asigna_agente()
         
+
+    def asigna_agente(self, values): # Aqui va la funcion que asigna el agente al lead
+        
+        dic_agents = {}
+
+        if self.localidad == 68: # Se asigna a agentes de España
+          li_agents = self.env['security.rol'].search([('')]) # Farjan Roles de agentes España
+            for agentes in li_agents:
+              cant_leads = 0
+              tasa_conv = []
+
+              leads_agent = self.env['crm.lead'].search([('user_id', '=', agente.id)]) # Farjan deberia guardar los leads del agente de españa
+              
+              for leads in leads_agent:
+                if leads.type == "lead": # Farjan si el crm_lead es un "lead" lo suma
+                  cant_leads +=1
+              for leads in leads_agent:
+                tasa_conv.append(leads.probability) # Farjan crea una lista con las tasas de conversion
+              
+              tasat_conv = sum(tasa_conv)/len(tasa_conv) # calcula la tasa de conversion
+
+              dic_agents.append('Agente':agentes, 'Numero de leads':cant_leads, 'tasa conversion':tasat_conv) # Retorna al agente con el numero de leads y tasa de conversion
+            
+
+
+        else: # Se asigna a agente de latam  
+          li_agents = self.env['security.rol'].search([('')]) # Farjan Roles de agentes LATAM
+            for agentes in li_agents:
+              cant_leads = 0
+              tasa_conv = []
+              leads_agent = self.env['crm.lead'].search([('user_id', '=', agente.id)]) # Farjan deberia guardar los leads del agente de LATAM
+              for leads in leads_agent:
+                if leads.type == "lead": # Farjan si el crm_lead es un "lead" lo suma
+                  cant_leads +=1
+              for leads in leads_agent:
+                tasa_conv.append(leads.probability) # Farjan crea una lista con las tasas de conversion
+              tasat_conv = sum(tasa_conv)/len(tasa_conv) # calcula la tasa de conversion
+
+              dic_agents.append('Agente':agentes, 'Numero de leads':cant_leads, 'tasa conversion':tasat_conv) # Retorna al agente con el numero de leads y tasa de conversion
+        
+
         return agente
 
-    def asigna_agente(localidad): # Aqui va la funcion que asigna el agente al lead
-     
-        # Aqui va la funcion que asigna el agente al lead
+    def selec_agente(self):
 
-        return agente
 #-----------------------------------------------------------
 
 # -Clases con datos de dias festivos (Para calcular la asignacion del lead)
